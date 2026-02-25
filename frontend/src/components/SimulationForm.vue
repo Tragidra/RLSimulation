@@ -1,13 +1,35 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useSimulationStore } from '@/stores/simulation'
+import { useLocale } from '@/composables/useLocale'
+import type { AgentRequest } from '@/types/simulation'
 
 const store = useSimulationStore()
+const { locale, t } = useLocale()
 
 const description = ref('')
 const preconditions = ref('')
-const rounds = ref(5)
+const roundMode = ref<'standard' | 'custom'>('standard')
+const customRounds = ref(10)
 const showOnlyResult = ref(false)
+const depth = ref<'shallow' | 'medium' | 'deep'>('medium')
+const agents = ref<AgentRequest[]>([{ name: '', role: '' }])
+
+const rounds = computed(() => roundMode.value === 'standard' ? 5 : customRounds.value)
+
+const allRolesEmpty = computed(() => agents.value.every(a => !a.role.trim()))
+
+function addAgent() {
+  if (agents.value.length < 5) {
+    agents.value.push({ name: '', role: '' })
+  }
+}
+
+function removeAgent(index: number) {
+  if (agents.value.length > 1) {
+    agents.value.splice(index, 1)
+  }
+}
 
 async function submit() {
   if (!description.value.trim()) return
@@ -16,56 +38,136 @@ async function submit() {
     preconditions: preconditions.value.trim(),
     rounds: rounds.value,
     show_only_result: showOnlyResult.value,
+    agents: agents.value.map(a => ({
+      name: a.name.trim() || 'Agent',
+      role: a.role.trim(),
+    })),
+    language: locale.value,
+    depth: depth.value,
   })
   description.value = ''
   preconditions.value = ''
-  rounds.value = 5
+  roundMode.value = 'standard'
+  customRounds.value = 10
   showOnlyResult.value = false
+  depth.value = 'medium'
+  agents.value = [{ name: '', role: '' }]
 }
 </script>
 
 <template>
   <div class="sim-form">
-    <h2>New Simulation</h2>
+    <h2>{{ t.form.title }}</h2>
 
     <div class="field">
-      <label for="description">Scenario Description</label>
+      <label for="description">{{ t.form.description }}</label>
       <textarea
         id="description"
         v-model="description"
         rows="4"
-        placeholder="Describe the simulation scenario..."
+        :placeholder="t.form.descriptionPlaceholder"
       />
     </div>
 
     <div class="field">
-      <label for="preconditions">Preconditions</label>
+      <label for="preconditions">{{ t.form.preconditions }}</label>
       <textarea
         id="preconditions"
         v-model="preconditions"
         rows="3"
-        placeholder="Initial conditions, options, constraints..."
+        :placeholder="t.form.preconditionsPlaceholder"
       />
     </div>
 
-    <div class="field-row">
-      <div class="field">
-        <label for="rounds">Rounds (1–20)</label>
-        <input
-          id="rounds"
-          v-model.number="rounds"
-          type="number"
-          min="1"
-          max="20"
-        />
+    <!-- Agents section -->
+    <div class="field">
+      <label>{{ t.form.agents }}</label>
+      <div
+        v-for="(agent, idx) in agents"
+        :key="idx"
+        class="agent-card"
+      >
+        <div class="agent-fields">
+          <input
+            type="text"
+            v-model="agent.name"
+            :placeholder="t.form.agentNamePlaceholder"
+            class="agent-input"
+          />
+          <input
+            type="text"
+            v-model="agent.role"
+            :placeholder="t.form.agentRolePlaceholder"
+            class="agent-input"
+          />
+        </div>
+        <button
+          v-if="agents.length > 1"
+          class="btn-remove-agent"
+          @click="removeAgent(idx)"
+        >
+          &times;
+        </button>
       </div>
+      <button
+        v-if="agents.length < 5"
+        class="btn-add-agent"
+        @click="addAgent"
+      >
+        {{ t.form.addAgent }}
+      </button>
+      <div v-if="agents.length > 1 && allRolesEmpty" class="hint">
+        {{ t.form.agentHintIndependent }}
+      </div>
+    </div>
 
-      <div class="field checkbox-field">
-        <label>
-          <input type="checkbox" v-model="showOnlyResult" />
-          Show only final result
+    <!-- Depth selector -->
+    <div class="field">
+      <label>{{ t.form.depth }}</label>
+      <div class="radio-group">
+        <label class="radio-label">
+          <input type="radio" v-model="depth" value="shallow" />
+          {{ t.form.depthShallow }}
+        </label>
+        <label class="radio-label">
+          <input type="radio" v-model="depth" value="medium" />
+          {{ t.form.depthMedium }}
+        </label>
+        <label class="radio-label">
+          <input type="radio" v-model="depth" value="deep" />
+          {{ t.form.depthDeep }}
         </label>
       </div>
+    </div>
+
+    <!-- Rounds -->
+    <div class="field">
+      <label>{{ t.form.rounds }}</label>
+      <div class="radio-group">
+        <label class="radio-label">
+          <input type="radio" v-model="roundMode" value="standard" />
+          {{ t.form.roundsStandard }}
+        </label>
+        <label class="radio-label">
+          <input type="radio" v-model="roundMode" value="custom" />
+          {{ t.form.roundsCustom }}
+        </label>
+      </div>
+      <input
+        v-if="roundMode === 'custom'"
+        v-model.number="customRounds"
+        type="number"
+        min="1"
+        max="50"
+        class="custom-rounds-input"
+      />
+    </div>
+
+    <div class="field checkbox-field">
+      <label>
+        <input type="checkbox" v-model="showOnlyResult" />
+        {{ t.form.showOnlyResult }}
+      </label>
     </div>
 
     <button
@@ -73,7 +175,7 @@ async function submit() {
       :disabled="!description.trim() || store.loading"
       @click="submit"
     >
-      {{ store.loading ? 'Starting...' : 'Run Simulation' }}
+      {{ store.loading ? t.form.starting : t.form.run }}
     </button>
   </div>
 </template>
@@ -81,6 +183,7 @@ async function submit() {
 <style scoped>
 .sim-form {
   padding: 1.5rem;
+  max-width: 700px;
 }
 
 .sim-form h2 {
@@ -93,7 +196,7 @@ async function submit() {
   margin-bottom: 1rem;
 }
 
-.field label {
+.field > label {
   display: block;
   margin-bottom: 0.35rem;
   font-size: 0.85rem;
@@ -121,16 +224,6 @@ async function submit() {
   border-color: #7c6ef0;
 }
 
-.field-row {
-  display: flex;
-  gap: 1rem;
-  align-items: flex-end;
-}
-
-.field-row .field {
-  flex: 1;
-}
-
 .checkbox-field label {
   display: flex;
   align-items: center;
@@ -142,6 +235,110 @@ async function submit() {
 
 .checkbox-field input[type='checkbox'] {
   accent-color: #7c6ef0;
+}
+
+/* Agent cards */
+.agent-card {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  background: #1e1e2e;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+}
+
+.agent-fields {
+  display: flex;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.agent-input {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background: #12121e;
+  color: #e0e0e0;
+  font-size: 0.85rem;
+  font-family: inherit;
+}
+
+.agent-input:focus {
+  outline: none;
+  border-color: #7c6ef0;
+}
+
+.btn-remove-agent {
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.btn-remove-agent:hover {
+  background: #5c1a1a;
+  color: #ff6a6a;
+}
+
+.btn-add-agent {
+  background: none;
+  border: 1px dashed #444;
+  color: #7c6ef0;
+  border-radius: 6px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.btn-add-agent:hover {
+  border-color: #7c6ef0;
+}
+
+.hint {
+  margin-top: 0.4rem;
+  font-size: 0.75rem;
+  color: #888;
+  font-style: italic;
+}
+
+/* Radio groups */
+.radio-group {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.25rem;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: #ccc;
+  cursor: pointer;
+}
+
+.radio-label input[type='radio'] {
+  accent-color: #7c6ef0;
+}
+
+.custom-rounds-input {
+  margin-top: 0.4rem;
+  width: 120px;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #444;
+  border-radius: 6px;
+  background: #1e1e2e;
+  color: #e0e0e0;
+  font-size: 0.9rem;
+  box-sizing: border-box;
 }
 
 .btn-run {

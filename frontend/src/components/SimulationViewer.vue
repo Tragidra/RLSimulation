@@ -2,9 +2,12 @@
 import { computed, watch, ref, nextTick } from 'vue'
 import { marked } from 'marked'
 import { useSimulationStore } from '@/stores/simulation'
+import { useLocale } from '@/composables/useLocale'
 import StepCard from './StepCard.vue'
+import type { Step } from '@/types/simulation'
 
 const store = useSimulationStore()
+const { t } = useLocale()
 const logContainer = ref<HTMLElement | null>(null)
 
 const sim = computed(() => store.currentSimulation)
@@ -16,12 +19,48 @@ const statusClass = computed(() => {
 
 const statusLabel = computed(() => {
   if (!sim.value) return ''
-  return sim.value.status.charAt(0).toUpperCase() + sim.value.status.slice(1)
+  const key = sim.value.status as keyof typeof t.value.status
+  return t.value.status[key] || sim.value.status
+})
+
+// Group steps by round
+interface RoundGroup {
+  round: number
+  steps: Step[]
+}
+
+const roundGroups = computed<RoundGroup[]>(() => {
+  if (!sim.value) return []
+  const groups: RoundGroup[] = []
+  let currentGroup: RoundGroup | null = null
+  for (const step of sim.value.steps) {
+    if (!currentGroup || currentGroup.round !== step.round) {
+      currentGroup = { round: step.round, steps: [] }
+      groups.push(currentGroup)
+    }
+    currentGroup.steps.push(step)
+  }
+  return groups
+})
+
+// Count completed rounds (rounds where all agents have acted)
+const completedRounds = computed(() => {
+  if (!sim.value) return 0
+  const agentCount = sim.value.agents?.length || 1
+  return Math.floor(sim.value.steps.length / agentCount)
 })
 
 const roundProgress = computed(() => {
   if (!sim.value) return ''
-  return `${sim.value.steps.length}/${sim.value.rounds}`
+  return `${completedRounds.value}/${sim.value.rounds}`
+})
+
+// Build agent index map for consistent coloring
+const agentIndexMap = computed<Record<string, number>>(() => {
+  if (!sim.value?.agents) return {}
+  const map: Record<string, number> = {}
+  sim.value.agents.forEach((a, i) => { map[a.id] = i })
+  return map
 })
 
 const finalHtml = computed(() => {
@@ -58,7 +97,7 @@ watch(
         <h2>{{ sim.description }}</h2>
         <div class="viewer-meta">
           <span class="status-badge" :class="statusClass">{{ statusLabel }}</span>
-          <span class="round-counter">Rounds: {{ roundProgress }}</span>
+          <span class="round-counter">{{ t.viewer.roundsLabel }}: {{ roundProgress }}</span>
         </div>
       </div>
     </div>
@@ -67,28 +106,32 @@ watch(
       <!-- Spinner mode -->
       <div v-if="showSpinner" class="spinner-container">
         <div class="spinner" />
-        <p>Simulation running... ({{ roundProgress }} rounds complete)</p>
+        <p>{{ t.viewer.running }} ({{ roundProgress }} {{ t.viewer.roundsComplete }})</p>
       </div>
 
-      <!-- Steps display -->
+      <!-- Steps grouped by round -->
       <template v-if="showSteps">
-        <StepCard
-          v-for="step in sim.steps"
-          :key="step.round"
-          :step="step"
-          :total-rounds="sim.rounds"
-        />
+        <div v-for="group in roundGroups" :key="group.round" class="round-group">
+          <div class="round-label">{{ t.viewer.roundLabel }} {{ group.round }}/{{ sim.rounds }}</div>
+          <StepCard
+            v-for="(step, idx) in group.steps"
+            :key="`${step.round}-${step.agent_id}`"
+            :step="step"
+            :total-rounds="sim.rounds"
+            :agent-index="agentIndexMap[step.agent_id] ?? idx"
+          />
+        </div>
       </template>
 
       <!-- Running indicator -->
       <div v-if="sim.status === 'running' && !sim.show_only_result" class="running-indicator">
         <div class="dot-pulse" />
-        <span>Agent is thinking...</span>
+        <span>{{ t.viewer.thinking }}</span>
       </div>
 
       <!-- Final result -->
       <div v-if="sim.final_result" class="final-result">
-        <div class="final-header">Final Summary</div>
+        <div class="final-header">{{ t.viewer.finalSummary }}</div>
         <div class="final-content" v-html="finalHtml" />
       </div>
     </div>
@@ -145,6 +188,21 @@ watch(
 .round-counter {
   font-size: 0.8rem;
   color: #888;
+}
+
+.round-group {
+  margin-bottom: 1rem;
+}
+
+.round-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #7c6ef0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.4rem;
+  padding: 0.2rem 0;
+  border-bottom: 1px solid #2a2a3e;
 }
 
 .viewer-body {

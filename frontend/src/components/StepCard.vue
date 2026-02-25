@@ -3,9 +3,12 @@ import { computed } from 'vue'
 import { marked } from 'marked'
 import type { Step } from '@/types/simulation'
 
+const AGENT_COLORS = ['#7c6ef0', '#e06c75', '#98c379', '#e5c07b', '#61afef']
+
 const props = defineProps<{
   step: Step
   totalRounds: number
+  agentIndex: number
 }>()
 
 const renderedContent = computed(() => {
@@ -15,12 +18,16 @@ const renderedContent = computed(() => {
 const formattedTime = computed(() => {
   return new Date(props.step.timestamp).toLocaleTimeString()
 })
+
+const borderColor = computed(() => AGENT_COLORS[props.agentIndex % AGENT_COLORS.length])
 </script>
 
 <template>
-  <div class="step-card">
+  <div class="step-card" :style="{ borderLeftColor: borderColor }">
     <div class="step-header">
-      <span class="round-badge">Round {{ step.round }}/{{ totalRounds }}</span>
+      <div class="step-header-left">
+        <span class="agent-name" :style="{ color: borderColor }">{{ step.agent_name }}</span>
+      </div>
       <span class="step-time">{{ formattedTime }}</span>
     </div>
     <div class="step-content" v-html="renderedContent" />
@@ -31,9 +38,10 @@ const formattedTime = computed(() => {
 .step-card {
   background: #1e1e2e;
   border: 1px solid #333;
+  border-left: 3px solid #7c6ef0;
   border-radius: 8px;
   padding: 1rem 1.25rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
 }
 
 .step-header {
@@ -43,13 +51,15 @@ const formattedTime = computed(() => {
   margin-bottom: 0.75rem;
 }
 
-.round-badge {
-  background: #7c6ef0;
-  color: #fff;
-  font-size: 0.75rem;
+.step-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.agent-name {
+  font-size: 0.8rem;
   font-weight: 600;
-  padding: 0.2rem 0.6rem;
-  border-radius: 12px;
 }
 
 .step-time {

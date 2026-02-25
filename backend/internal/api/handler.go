@@ -41,9 +41,41 @@ func (h *Handler) CreateSimulation(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"description is required"}`, http.StatusBadRequest)
 		return
 	}
-	if req.Rounds < 1 || req.Rounds > 20 {
-		http.Error(w, `{"error":"rounds must be between 1 and 20"}`, http.StatusBadRequest)
+	if req.Rounds < 1 || req.Rounds > 50 {
+		http.Error(w, `{"error":"rounds must be between 1 and 50"}`, http.StatusBadRequest)
 		return
+	}
+
+	// Default agents: single "Agent" with no role (backward compat)
+	agents := make([]models.Agent, 0, len(req.Agents))
+	if len(req.Agents) == 0 {
+		agents = append(agents, models.Agent{
+			ID:   uuid.New().String(),
+			Name: "Agent",
+		})
+	} else {
+		for _, a := range req.Agents {
+			if a.Name == "" {
+				a.Name = "Agent"
+			}
+			agents = append(agents, models.Agent{
+				ID:   uuid.New().String(),
+				Name: a.Name,
+				Role: a.Role,
+			})
+		}
+	}
+
+	// Default language
+	lang := req.Language
+	if lang != "ru" {
+		lang = "en"
+	}
+
+	// Default depth
+	depth := req.Depth
+	if depth != "shallow" && depth != "deep" {
+		depth = "medium"
 	}
 
 	sim := models.Simulation{
@@ -52,6 +84,9 @@ func (h *Handler) CreateSimulation(w http.ResponseWriter, r *http.Request) {
 		Preconditions:  req.Preconditions,
 		Rounds:         req.Rounds,
 		ShowOnlyResult: req.ShowOnlyResult,
+		Agents:         agents,
+		Language:       lang,
+		Depth:          depth,
 		Status:         "running",
 		Steps:          []models.Step{},
 		CreatedAt:      time.Now(),
