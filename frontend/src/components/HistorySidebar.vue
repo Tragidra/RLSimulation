@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useSimulationStore } from '@/stores/simulation'
+import { useLocale } from '@/composables/useLocale'
 
 const store = useSimulationStore()
+const { locale, t, setLocale } = useLocale()
 
 onMounted(() => {
   store.fetchSimulations()
@@ -26,8 +28,22 @@ function formatDate(dateStr: string): string {
 <template>
   <div class="sidebar">
     <div class="sidebar-header">
-      <h3>SimArena</h3>
-      <button class="btn-new" @click="store.clearCurrent()">+ New</button>
+      <h3>{{ t.app.title }}</h3>
+      <div class="header-actions">
+        <div class="lang-toggle">
+          <button
+            class="lang-btn"
+            :class="{ active: locale === 'en' }"
+            @click="setLocale('en')"
+          >{{ t.lang.en }}</button>
+          <button
+            class="lang-btn"
+            :class="{ active: locale === 'ru' }"
+            @click="setLocale('ru')"
+          >{{ t.lang.ru }}</button>
+        </div>
+        <button class="btn-new" @click="store.clearCurrent()">{{ t.sidebar.newButton }}</button>
+      </div>
     </div>
 
     <div class="sim-list">
@@ -53,7 +69,7 @@ function formatDate(dateStr: string): string {
       </div>
 
       <div v-if="store.simulations.length === 0" class="empty">
-        No simulations yet
+        {{ t.sidebar.empty }}
       </div>
     </div>
   </div>
@@ -79,6 +95,39 @@ function formatDate(dateStr: string): string {
   margin: 0;
   font-size: 1.1rem;
   color: #e0e0e0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.lang-toggle {
+  display: flex;
+  border: 1px solid #444;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.lang-btn {
+  background: transparent;
+  border: none;
+  color: #888;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.45rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.lang-btn.active {
+  background: #7c6ef0;
+  color: #fff;
+}
+
+.lang-btn:hover:not(.active) {
+  color: #ccc;
 }
 
 .btn-new {

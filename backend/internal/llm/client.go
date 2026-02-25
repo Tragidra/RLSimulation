@@ -49,13 +49,14 @@ func NewClient(cfg Config) *Client {
 }
 
 // ChatCompletion sends a non-streaming chat completion request and returns the full response text.
-func (c *Client) ChatCompletion(ctx context.Context, messages []ChatMessage) (string, error) {
+// maxTokens overrides the default if > 0; 0 means omit max_tokens from the request.
+func (c *Client) ChatCompletion(ctx context.Context, messages []ChatMessage, maxTokens int) (string, error) {
 	var lastErr error
 	for attempt := 0; attempt < 2; attempt++ {
 		if attempt > 0 {
 			time.Sleep(5 * time.Second)
 		}
-		result, err := c.doChatCompletion(ctx, messages)
+		result, err := c.doChatCompletion(ctx, messages, maxTokens)
 		if err == nil {
 			return result, nil
 		}
@@ -64,12 +65,14 @@ func (c *Client) ChatCompletion(ctx context.Context, messages []ChatMessage) (st
 	return "", fmt.Errorf("chat completion failed after retries: %w", lastErr)
 }
 
-func (c *Client) doChatCompletion(ctx context.Context, messages []ChatMessage) (string, error) {
+func (c *Client) doChatCompletion(ctx context.Context, messages []ChatMessage, maxTokens int) (string, error) {
 	reqBody := ChatCompletionRequest{
-		Model:     c.cfg.Model,
-		Messages:  messages,
-		Stream:    false,
-		MaxTokens: c.cfg.MaxTokens,
+		Model:    c.cfg.Model,
+		Messages: messages,
+		Stream:   false,
+	}
+	if maxTokens > 0 {
+		reqBody.MaxTokens = maxTokens
 	}
 
 	bodyBytes, err := json.Marshal(reqBody)
@@ -107,14 +110,14 @@ func (c *Client) doChatCompletion(ctx context.Context, messages []ChatMessage) (
 }
 
 // ChatCompletionStream sends a streaming chat completion request and calls onChunk for each text delta.
-// Returns the full accumulated text.
-func (c *Client) ChatCompletionStream(ctx context.Context, messages []ChatMessage, onChunk func(delta string)) (string, error) {
+// maxTokens overrides the default if > 0; 0 means omit max_tokens from the request.
+func (c *Client) ChatCompletionStream(ctx context.Context, messages []ChatMessage, maxTokens int, onChunk func(delta string)) (string, error) {
 	var lastErr error
 	for attempt := 0; attempt < 2; attempt++ {
 		if attempt > 0 {
 			time.Sleep(5 * time.Second)
 		}
-		result, err := c.doChatCompletionStream(ctx, messages, onChunk)
+		result, err := c.doChatCompletionStream(ctx, messages, maxTokens, onChunk)
 		if err == nil {
 			return result, nil
 		}
@@ -123,12 +126,14 @@ func (c *Client) ChatCompletionStream(ctx context.Context, messages []ChatMessag
 	return "", fmt.Errorf("streaming chat completion failed after retries: %w", lastErr)
 }
 
-func (c *Client) doChatCompletionStream(ctx context.Context, messages []ChatMessage, onChunk func(delta string)) (string, error) {
+func (c *Client) doChatCompletionStream(ctx context.Context, messages []ChatMessage, maxTokens int, onChunk func(delta string)) (string, error) {
 	reqBody := ChatCompletionRequest{
-		Model:     c.cfg.Model,
-		Messages:  messages,
-		Stream:    true,
-		MaxTokens: c.cfg.MaxTokens,
+		Model:    c.cfg.Model,
+		Messages: messages,
+		Stream:   true,
+	}
+	if maxTokens > 0 {
+		reqBody.MaxTokens = maxTokens
 	}
 
 	bodyBytes, err := json.Marshal(reqBody)
