@@ -28,7 +28,7 @@ func BuildRoundMessages(sim *models.Simulation, round int) []llm.ChatMessage {
 
 	messages := []llm.ChatMessage{
 		{Role: "system", Content: system.String()},
-		{Role: "user", Content: fmt.Sprintf("Execute round %d. Describe your analysis, decisions, and actions for this round. Be detailed and strategic.", round)},
+		{Role: "user", Content: fmt.Sprintf("Execute round %d. Describe your analysis, decisions, and actions for this round. Be detailed and strategic. Write on russian, if you can.", round)},
 	}
 	return messages
 }

@@ -24,7 +24,7 @@ type Config struct {
 // DefaultConfig returns a default configuration for LM Studio.
 func DefaultConfig() Config {
 	return Config{
-		BaseURL:   "http://localhost:1234/v1",
+		BaseURL:   "http://localhost:7090/v1",
 		Model:     "openai/gpt-oss-20b",
 		APIKey:    "not-needed",
 		Timeout:   120 * time.Second,
@@ -34,8 +34,8 @@ func DefaultConfig() Config {
 
 // Client is an OpenAI-compatible LLM API client.
 type Client struct {
-	cfg    Config
-	http   *http.Client
+	cfg  Config
+	http *http.Client
 }
 
 // NewClient creates a new LLM client.

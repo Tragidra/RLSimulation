@@ -16,7 +16,7 @@ func main() {
 	// Configuration from env or defaults
 	port := getEnv("PORT", "8080")
 	corsOrigin := getEnv("CORS_ORIGIN", "http://localhost:5173")
-	llmBaseURL := getEnv("LLM_BASE_URL", "http://localhost:1234/v1")
+	llmBaseURL := getEnv("LLM_BASE_URL", "http://localhost:7090/v1")
 	llmModel := getEnv("LLM_MODEL", "openai/gpt-oss-20b")
 	llmAPIKey := getEnv("LLM_API_KEY", "not-needed")
 	dataPath := getEnv("DATA_PATH", "./data")
