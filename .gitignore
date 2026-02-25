@@ -1,0 +1,15 @@
+# Data
+data/
+
+# Go
+backend/server
+backend/tmp/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# OS
+.DS_Store
+*.swp
+*.swo
